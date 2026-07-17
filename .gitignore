@@ -1,0 +1,17 @@
+.DS_Store
+.pio/
+.vscode/
+build/
+build-*/
+bin/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+*.o
+*.a
+*.so
+*.elf
+*.hex
+*.log
+*_autogen/

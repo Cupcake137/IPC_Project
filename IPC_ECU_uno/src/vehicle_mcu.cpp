@@ -1,14 +1,43 @@
 #include "vehicle_mcu.h"
 #include "can_manager.h"
 
-float simulatedSoC = 100.0;
-uint8_t currentGear = 0; 
+float simulatedSoC = 100.0f;
+uint8_t currentGear = GEAR_P;
 uint8_t vehicleSpeedKmh = 0;
-uint8_t activeDtcCode = 0x00; 
+uint8_t activeDtcCode = 0x00;
+uint8_t pedalPercent = 0;
 
 static uint8_t localTxCounter = 0;
-static bool lastUpState = HIGH;
-static bool lastDownState = HIGH;
+static uint8_t appliedPwm = 0;
+static uint32_t lastPedalSampleMs = 0;
+static uint32_t lastTelemetryMs = 0;
+static uint32_t lastSlowTelemetryMs = 0;
+static uint32_t lastSimulationMs = 0;
+static uint32_t overloadStartMs = 0;
+
+static bool lastStableUp = HIGH;
+static bool lastStableDown = HIGH;
+static bool lastRawUp = HIGH;
+static bool lastRawDown = HIGH;
+static uint32_t lastUpChangeMs = 0;
+static uint32_t lastDownChangeMs = 0;
+
+static uint8_t read_pedal_percent() {
+    const int raw = analogRead(POT_PIN);
+    if (raw < 40) {
+        return 0;
+    }
+    return (uint8_t)constrain(map(raw, 40, 1023, 0, 100), 0, 100);
+}
+
+static char gear_to_char(uint8_t gear) {
+    switch (gear) {
+        case GEAR_R: return 'R';
+        case GEAR_N: return 'N';
+        case GEAR_D: return 'D';
+        default: return 'P';
+    }
+}
 
 void vehicle_hardware_init() {
     pinMode(ENA_PIN, OUTPUT);
@@ -17,99 +46,144 @@ void vehicle_hardware_init() {
     pinMode(BTN_UP_PIN, INPUT_PULLUP);
     pinMode(BTN_DOWN_PIN, INPUT_PULLUP);
 
-    digitalWrite(IN1_PIN, HIGH);
+    digitalWrite(IN1_PIN, LOW);
     digitalWrite(IN2_PIN, LOW);
     analogWrite(ENA_PIN, 0);
 }
 
-void update_battery_and_dtc_simulation() {
-    uint8_t activePwm = OCR0B; 
-    
-    // Mathematical speed approximation from active PWM
-    if (currentGear == 1 || currentGear == 3) {
-        vehicleSpeedKmh = (uint8_t)(((uint16_t)activePwm * 120) / 255);
-    } else {
-        vehicleSpeedKmh = 0; 
-    }
+void vehicle_apply_motor_command(uint8_t authorized_pwm) {
+    appliedPwm = authorized_pwm;
 
-    // Battery Drain logic
-    if (activePwm > 0) {
-        simulatedSoC -= (0.05 + ((float)activePwm / 255.0) * 0.2); 
+    if (currentGear == GEAR_D && authorized_pwm > 0) {
+        digitalWrite(IN1_PIN, HIGH);
+        digitalWrite(IN2_PIN, LOW);
+        analogWrite(ENA_PIN, authorized_pwm);
+    } else if (currentGear == GEAR_R && authorized_pwm > 0) {
+        digitalWrite(IN1_PIN, LOW);
+        digitalWrite(IN2_PIN, HIGH);
+        analogWrite(ENA_PIN, authorized_pwm);
     } else {
-        simulatedSoC -= 0.005; 
-    }
-    if (simulatedSoC < 0) simulatedSoC = 0.0;
-
-    // Diagnostic Trouble Code Logic
-    if (simulatedSoC < 15.0) {
-        activeDtcCode = 0x11; // Low Battery
-    } else if (activePwm == 255) {
-        static unsigned long overloadTimer = 0;
-        if (overloadTimer == 0) overloadTimer = millis();
-        if (millis() - overloadTimer > 3000) {
-            activeDtcCode = 0x22; // Overload
-        }
-    } else {
-        activeDtcCode = 0x00; 
+        analogWrite(ENA_PIN, 0);
+        digitalWrite(IN1_PIN, LOW);
+        digitalWrite(IN2_PIN, LOW);
     }
 }
 
-static void send_modular_can(SoftwareSerial* port, uint16_t id, uint8_t dlc, uint8_t* data) {
-    CAN_Frame_t frame;
-    frame.sof = 0x00; frame.can_id = id; frame.rtr = 0; frame.ide_r0 = 0; frame.dlc = dlc;
-    memset(frame.data, 0, 8);
-    memcpy(frame.data, data, dlc);
-    frame.crc = calculate_CAN_CRC(id, dlc, data);
-    frame.ack = 0xFF; frame.eof = 0x7F;
-    frame.counter = localTxCounter;
-
-    port->write((uint8_t*)&frame, sizeof(CAN_Frame_t));
-    localTxCounter = (localTxCounter + 1) % 16;
+static void send_gear(SoftwareSerial& serial_line) {
+    uart_send_frame(serial_line, MSG_GEAR_STATE, 1, &currentGear, &localTxCounter);
 }
 
-void check_gear_shift_buttons(SoftwareSerial* serial_line) {
-    bool upState = digitalRead(BTN_UP_PIN);
-    if (upState == LOW && lastUpState == HIGH) {
-        delay(20); 
-        if (digitalRead(BTN_UP_PIN) == LOW && currentGear < 3) {
-            currentGear++;
-            uint8_t payload = currentGear;
-            send_modular_can(serial_line, 0x0401, 1, &payload);
-        }
+static void handle_shift_button(bool up_button, SoftwareSerial& serial_line) {
+    if (pedalPercent > 2) {
+        Serial.println(F("[ECU] Shift blocked: release pedal first."));
+        return;
     }
-    lastUpState = upState;
 
-    bool downState = digitalRead(BTN_DOWN_PIN);
-    if (downState == LOW && lastDownState == HIGH) {
-        delay(20);
-        if (digitalRead(BTN_DOWN_PIN) == LOW && currentGear > 0) {
-            currentGear--;
-            uint8_t payload = currentGear;
-            send_modular_can(serial_line, 0x0401, 1, &payload);
-        }
+    if (up_button && currentGear < GEAR_D) {
+        currentGear++;
+    } else if (!up_button && currentGear > GEAR_P) {
+        currentGear--;
+    } else {
+        return;
     }
-    lastDownState = downState;
+
+    Serial.print(F("[ECU] Gear -> "));
+    Serial.println(gear_to_char(currentGear));
+    vehicle_apply_motor_command(appliedPwm);
+    send_gear(serial_line);
 }
 
-void broadcast_periodic_telemetry(SoftwareSerial* serial_line) {
-    static unsigned long lastPedalTime = 0;
-    static unsigned long lastSocTime = 0;
-    unsigned long now = millis();
+static void debounce_buttons(SoftwareSerial& serial_line) {
+    const uint32_t now = millis();
+    const bool rawUp = digitalRead(BTN_UP_PIN);
+    const bool rawDown = digitalRead(BTN_DOWN_PIN);
 
-    if (now - lastPedalTime >= 100) {
-        lastPedalTime = now;
-        uint8_t payload[2];
-        payload[0] = map(analogRead(POT_PIN), 0, 1023, 0, 100); 
-        payload[1] = vehicleSpeedKmh;                            
-        send_modular_can(serial_line, 0x0101, 2, payload);       
+    if (rawUp != lastRawUp) {
+        lastRawUp = rawUp;
+        lastUpChangeMs = now;
+    }
+    if ((now - lastUpChangeMs) >= 35 && rawUp != lastStableUp) {
+        const bool previous = lastStableUp;
+        lastStableUp = rawUp;
+        if (previous == HIGH && lastStableUp == LOW) {
+            handle_shift_button(true, serial_line);
+        }
     }
 
-    if (now - lastSocTime >= 1000) {
-        lastSocTime = now;
-        uint8_t socPayload = (uint8_t)simulatedSoC;
-        send_modular_can(serial_line, 0x0201, 1, &socPayload);
+    if (rawDown != lastRawDown) {
+        lastRawDown = rawDown;
+        lastDownChangeMs = now;
+    }
+    if ((now - lastDownChangeMs) >= 35 && rawDown != lastStableDown) {
+        const bool previous = lastStableDown;
+        lastStableDown = rawDown;
+        if (previous == HIGH && lastStableDown == LOW) {
+            handle_shift_button(false, serial_line);
+        }
+    }
+}
 
-        uint8_t dtcPayload = activeDtcCode;
-        send_modular_can(serial_line, 0x0501, 1, &dtcPayload);
+static void update_simulation() {
+    const bool tractionGear = (currentGear == GEAR_D || currentGear == GEAR_R);
+    vehicleSpeedKmh = tractionGear ? (uint8_t)(((uint16_t)appliedPwm * 120U) / 255U) : 0;
+
+    if (tractionGear && appliedPwm > 0 && simulatedSoC > 0.0f) {
+        simulatedSoC -= 0.03f + ((float)appliedPwm / 255.0f) * 0.12f;
+    } else if (simulatedSoC > 0.0f) {
+        simulatedSoC -= 0.002f;
+    }
+
+    if (simulatedSoC < 0.0f) {
+        simulatedSoC = 0.0f;
+    }
+
+    if (simulatedSoC < 15.0f) {
+        activeDtcCode = 0x11;
+    } else if (appliedPwm >= 250) {
+        if (overloadStartMs == 0) {
+            overloadStartMs = millis();
+        }
+        activeDtcCode = (millis() - overloadStartMs >= 3000) ? 0x22 : 0x00;
+    } else {
+        activeDtcCode = 0x00;
+        overloadStartMs = 0;
+    }
+}
+
+static void send_fast_telemetry(SoftwareSerial& serial_line) {
+    uint8_t payload[2] = {pedalPercent, vehicleSpeedKmh};
+    uart_send_frame(serial_line, MSG_PEDAL_SPEED, sizeof(payload), payload, &localTxCounter);
+}
+
+static void send_slow_telemetry(SoftwareSerial& serial_line) {
+    uint8_t soc = (uint8_t)constrain((int)(simulatedSoC + 0.5f), 0, 100);
+    uart_send_frame(serial_line, MSG_BATTERY_SOC, 1, &soc, &localTxCounter);
+    uart_send_frame(serial_line, MSG_DTC_STATUS, 1, &activeDtcCode, &localTxCounter);
+}
+
+void vehicle_tick(SoftwareSerial& serial_line) {
+    const uint32_t now = millis();
+
+    if (now - lastPedalSampleMs >= 10) {
+        lastPedalSampleMs = now;
+        pedalPercent = read_pedal_percent();
+    }
+
+    debounce_buttons(serial_line);
+
+    if (now - lastSimulationMs >= 100) {
+        lastSimulationMs = now;
+        update_simulation();
+    }
+
+    if (now - lastTelemetryMs >= 50) {
+        lastTelemetryMs = now;
+        send_fast_telemetry(serial_line);
+    }
+
+    if (now - lastSlowTelemetryMs >= 1000) {
+        lastSlowTelemetryMs = now;
+        send_gear(serial_line);
+        send_slow_telemetry(serial_line);
     }
 }

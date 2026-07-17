@@ -4,21 +4,32 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 
-const int POT_PIN = A0;      
-const int ENA_PIN = 5;       
-const int IN1_PIN = 7;       
-const int IN2_PIN = 8;       
-const int BTN_UP_PIN = 9;    
-const int BTN_DOWN_PIN = 10; 
+static const uint32_t ECU_UART_BAUD = 9600;
+
+static const uint8_t PI_RX_PIN = 2;
+static const uint8_t PI_TX_PIN = 3;
+static const uint8_t POT_PIN = A0;
+static const uint8_t ENA_PIN = 5;
+static const uint8_t IN1_PIN = 7;
+static const uint8_t IN2_PIN = 8;
+static const uint8_t BTN_UP_PIN = 9;
+static const uint8_t BTN_DOWN_PIN = 10;
+
+enum GearPosition : uint8_t {
+    GEAR_P = 0,
+    GEAR_R = 1,
+    GEAR_N = 2,
+    GEAR_D = 3,
+};
 
 extern float simulatedSoC;
 extern uint8_t currentGear;
 extern uint8_t vehicleSpeedKmh;
 extern uint8_t activeDtcCode;
+extern uint8_t pedalPercent;
 
 void vehicle_hardware_init();
-void update_battery_and_dtc_simulation();
-void check_gear_shift_buttons(SoftwareSerial* serial_line);
-void broadcast_periodic_telemetry(SoftwareSerial* serial_line);
+void vehicle_tick(SoftwareSerial& serial_line);
+void vehicle_apply_motor_command(uint8_t authorized_pwm);
 
 #endif

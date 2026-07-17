@@ -1,100 +1,101 @@
-#include <stdio.h>
-#include <string.h>
+#include <errno.h>
 #include <fcntl.h>
-#include <termios.h>
-#include <unistd.h>
-#include <sys/select.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
 #include "can_manager.h"
 #include "vcu_core.h"
 
-int main() {
-    int serial_port = open("/dev/ttyUSB0", O_RDWR | O_NONBLOCK);
+#define DEFAULT_SERIAL_PORT "/dev/ttyUSB0"
+#define SERIAL_BAUD B9600
+
+static int configure_serial(int fd) {
+    struct termios tty;
+
+    if (tcgetattr(fd, &tty) != 0) {
+        return -1;
+    }
+
+    cfmakeraw(&tty);
+    cfsetispeed(&tty, SERIAL_BAUD);
+    cfsetospeed(&tty, SERIAL_BAUD);
+    tty.c_cflag |= (CLOCAL | CREAD);
+    tty.c_cflag &= ~CRTSCTS;
+    tty.c_cc[VMIN] = 0;
+    tty.c_cc[VTIME] = 1;
+
+    return tcsetattr(fd, TCSANOW, &tty);
+}
+
+static long monotonic_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long)(ts.tv_sec * 1000L + ts.tv_nsec / 1000000L);
+}
+
+static void send_motor_command(int serial_port, VCU_VehicleContext_t* ctx, uint8_t* tx_counter) {
+    uint8_t payload = vcu_calculate_motor_pwm(ctx);
+    uint8_t tx[16];
+    const int n = uart_encode_frame(tx, (int)sizeof(tx), MSG_MOTOR_COMMAND, 1, &payload, tx_counter);
+    if (n > 0) {
+        (void)write(serial_port, tx, (size_t)n);
+    }
+}
+
+int main(int argc, char** argv) {
+    const char* serial_path = (argc > 1) ? argv[1] : DEFAULT_SERIAL_PORT;
+    int serial_port = open(serial_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
     if (serial_port < 0) {
-        printf("Error: Unable to open port /dev/ttyUSB0\n");
+        fprintf(stderr, "Error: unable to open %s: %s\n", serial_path, strerror(errno));
         return 1;
     }
 
-    struct termios tty;
-    if (tcgetattr(serial_port, &tty) != 0) return 1;
-    cfmakeraw(&tty);
-    cfsetispeed(&tty, B9600); cfsetospeed(&tty, B9600);
-    tcsetattr(serial_port, TCSANOW, &tty);
+    if (configure_serial(serial_port) != 0) {
+        fprintf(stderr, "Error: unable to configure %s: %s\n", serial_path, strerror(errno));
+        close(serial_port);
+        return 1;
+    }
 
-    VCU_VehicleContext_t vcu_vehicle_state = {0, MODE_NORMAL, 0, 100, 0, 0, 0, 0};
-    uint8_t localTxCounter = 0;
-    uint8_t raw_rx_buffer[sizeof(CAN_Frame_t)];
-    int rx_byte_count = 0;
+    VCU_VehicleContext_t ctx;
+    UartFrameParser_t parser;
+    uint8_t tx_counter = 0;
+    long last_status_ms = 0;
 
-    fd_set read_fds;
-    int max_fd = (serial_port > STDIN_FILENO) ? serial_port : STDIN_FILENO;
+    vcu_init(&ctx);
+    uart_parser_init(&parser);
 
     printf("=======================================================================\n");
-    printf("--- MODULAR VEHICLE CONTROL UNIT (VCU) ONLINE ---\n");
-    printf("Controls: [i] Ignition READY | [e] ECO | [n] NORMAL | [s] SPORT\n");
-    printf("=======================================================================\n\n");
+    printf("--- IPC VCU console started on %s @ 9600 baud ---\n", serial_path);
+    printf("=======================================================================\n");
 
     while (1) {
-        FD_ZERO(&read_fds);
-        FD_SET(STDIN_FILENO, &read_fds);
-        FD_SET(serial_port, &read_fds);
+        uint8_t inbound[64];
+        const ssize_t n = read(serial_port, inbound, sizeof(inbound));
 
-        int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
-        if (activity < 0) break;
+        if (n > 0) {
+            for (ssize_t i = 0; i < n; ++i) {
+                CAN_Frame_t frame;
+                if (uart_parser_feed(&parser, inbound[i], &frame)) {
+                    vcu_process_frame(&ctx, &frame);
 
-        if (FD_ISSET(STDIN_FILENO, &read_fds)) {
-            char ch = getchar();
-            if (ch == 'i') {
-                vcu_vehicle_state.is_ready_to_drive = !vcu_vehicle_state.is_ready_to_drive;
-                if(!vcu_vehicle_state.is_ready_to_drive) vcu_vehicle_state.authorized_pwm = 0;
-                printf("[HMI EVENT] READY Latch -> %s\n", vcu_vehicle_state.is_ready_to_drive ? "ACTIVE" : "LOCKED");
-            } else if (ch == 'e') {
-                vcu_vehicle_state.drive_mode = MODE_ECO;
-                printf("[HMI EVENT] Drive Profile -> ECO\n");
-            } else if (ch == 'n') {
-                vcu_vehicle_state.drive_mode = MODE_NORMAL;
-                printf("[HMI EVENT] Drive Profile -> NORMAL\n");
-            } else if (ch == 's') {
-                vcu_vehicle_state.drive_mode = MODE_SPORT;
-                printf("[HMI EVENT] Drive Profile -> SPORT\n");
-            }
-        }
-
-        if (FD_ISSET(serial_port, &read_fds)) {
-            uint8_t inbound_byte;
-            if (read(serial_port, &inbound_byte, 1) > 0) {
-                if (rx_byte_count < (int)sizeof(CAN_Frame_t)) {
-                    raw_rx_buffer[rx_byte_count++] = inbound_byte;
-                }
-
-                if (rx_byte_count == sizeof(CAN_Frame_t)) {
-                    CAN_Frame_t *frame = (CAN_Frame_t*)raw_rx_buffer;
-                    uint16_t localCrc = calculate_CAN_CRC(frame->can_id, frame->dlc, frame->data);
-
-                    if (localCrc == frame->crc) {
-                        execute_vcu_powertrain_strategy(&vcu_vehicle_state, frame);
-
-                        CAN_Frame_t txFrame;
-                        txFrame.sof = 0x00; txFrame.can_id = 0x0100; txFrame.rtr = 0; txFrame.ide_r0 = 0;
-                        txFrame.dlc = 1;
-                        memset(txFrame.data, 0, 8);
-                        txFrame.data[0] = vcu_vehicle_state.authorized_pwm;
-                        txFrame.crc = calculate_CAN_CRC(0x0100, 1, txFrame.data);
-                        txFrame.ack = 0xFF; txFrame.eof = 0x7F;
-                        txFrame.counter = localTxCounter;
-
-                        write(serial_port, (uint8_t*)&txFrame, sizeof(CAN_Frame_t));
-                        localTxCounter = (localTxCounter + 1) % 16;
-
-                        rx_byte_count = 0; 
-                    } 
-                    else {
-                        memmove(raw_rx_buffer, raw_rx_buffer + 1, sizeof(CAN_Frame_t) - 1);
-                        rx_byte_count--;
+                    if (frame.id == MSG_PEDAL_SPEED) {
+                        send_motor_command(serial_port, &ctx, &tx_counter);
                     }
                 }
             }
         }
+
+        const long now = monotonic_ms();
+        if (now - last_status_ms >= 500) {
+            last_status_ms = now;
+            vcu_calculate_motor_pwm(&ctx);
+            vcu_print_status(&ctx);
+        }
+
+        usleep(1000);
     }
 
     close(serial_port);

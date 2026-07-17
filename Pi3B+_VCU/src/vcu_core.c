@@ -1,71 +1,140 @@
 #include <stdio.h>
 #include "vcu_core.h"
 
-void execute_vcu_powertrain_strategy(VCU_VehicleContext_t* ctx, CAN_Frame_t* rxFrame) {
-    if (rxFrame->can_id == 0x0101) {
-        ctx->pedal_input = rxFrame->data[0];
-        ctx->vehicle_speed = rxFrame->data[1]; 
-    } 
-    else if (rxFrame->can_id == 0x0201) {
-        ctx->battery_soc = rxFrame->data[0];
-    } 
-    else if (rxFrame->can_id == 0x0401) {
-        if (ctx->pedal_input > 2) {
-            printf("\033[1;31m[VCU REJECTION] Shifting blocked! Release acceleration pedal.\033[0m\n");
-        } else {
-            ctx->gear_position = rxFrame->data[0];
-        }
-    }
-    else if (rxFrame->can_id == 0x0501) {
-        ctx->active_dtc_fault = rxFrame->data[0]; 
-    }
+#define REVERSE_MAX_PWM 43U
 
-    if (ctx->active_dtc_fault > 0) {
-        printf("\033[1;33m[VCU DIAGNOSTIC WARNING] Active DTC Alarm: ");
-        if (ctx->active_dtc_fault == 0x11) printf("P0A80 - Battery Pack Low Voltage\033[0m\n");
-        if (ctx->active_dtc_fault == 0x22) printf("P1A10 - Motor Current Overload\033[0m\n");
+static char gear_to_char(uint8_t gear) {
+    switch (gear) {
+        case GEAR_R: return 'R';
+        case GEAR_N: return 'N';
+        case GEAR_D: return 'D';
+        default: return 'P';
     }
+}
 
-    if (!ctx->is_ready_to_drive) {
-        ctx->authorized_pwm = 0;
-        printf("[VCU] IGNITION: OFF | SoC: %d%% | Gear: %c | Speed: %d km/h | PROPULSION LOCKED\n",
-               ctx->battery_soc, 
-               (ctx->gear_position==0)?'P':(ctx->gear_position==1)?'R':(ctx->gear_position==2)?'N':'D',
-               ctx->vehicle_speed);
-    } 
-    else if (ctx->battery_soc == 0) {
-        ctx->authorized_pwm = 0;
-        printf("\033[1;31m[VCU EMERGENCY] VEHICLE INOPERABLE: BATTERY DEPLETED!\033[0m\n");
+static const char* drive_mode_text(DriveMode_t mode) {
+    switch (mode) {
+        case MODE_ECO: return "ECO";
+        case MODE_SPORT: return "SPORT";
+        default: return "NORMAL";
     }
-    else if (ctx->gear_position == 0 || ctx->gear_position == 2) {
-        ctx->authorized_pwm = 0;
-        printf("[VCU] IGNITION: READY | SoC: %d%% | Gear: %c | Speed: %d km/h | TRACTION ISOLATED\n",
-               ctx->battery_soc, (ctx->gear_position==0)?'P':'N', ctx->vehicle_speed);
-    }
-    else {
-        int base_pwm = (ctx->pedal_input * 255) / 100;
+}
 
-        if (ctx->drive_mode == MODE_ECO) {
-            ctx->authorized_pwm = (uint8_t)(base_pwm * 0.5);
-        } 
-        else if (ctx->drive_mode == MODE_NORMAL) {
-            ctx->authorized_pwm = (uint8_t)base_pwm;
-        } 
-        else if (ctx->drive_mode == MODE_SPORT) {
-            if (ctx->pedal_input > 0 && ctx->pedal_input < 30) {
-                ctx->authorized_pwm = (uint8_t)(base_pwm * 1.5);
-            } else {
-                ctx->authorized_pwm = (uint8_t)base_pwm;
+static const char* state_text(VehicleState_t state) {
+    switch (state) {
+        case VEHICLE_OFF: return "OFF";
+        case VEHICLE_ACC: return "ACC";
+        case VEHICLE_READY: return "READY";
+        case VEHICLE_CHARGING: return "CHARGING";
+        case VEHICLE_FAULT: return "FAULT";
+        default: return "UNKNOWN";
+    }
+}
+
+void vcu_init(VCU_VehicleContext_t* ctx) {
+    ctx->state = VEHICLE_READY;
+    ctx->drive_mode = MODE_NORMAL;
+    ctx->pedal_input = 0;
+    ctx->battery_soc = 100;
+    ctx->gear_position = GEAR_P;
+    ctx->vehicle_speed = 0;
+    ctx->active_dtc_fault = 0;
+    ctx->authorized_pwm = 0;
+}
+
+void vcu_process_frame(VCU_VehicleContext_t* ctx, const CAN_Frame_t* rxFrame) {
+    switch (rxFrame->id) {
+        case MSG_PEDAL_SPEED:
+            if (rxFrame->dlc >= 2) {
+                ctx->pedal_input = rxFrame->data[0];
+                ctx->vehicle_speed = rxFrame->data[1];
             }
-            if (ctx->authorized_pwm > 255) ctx->authorized_pwm = 255;
-        }
+            break;
 
-        if (ctx->gear_position == 1 && ctx->authorized_pwm > 100) {
-            ctx->authorized_pwm = 100;
-        }
+        case MSG_BATTERY_SOC:
+            if (rxFrame->dlc >= 1) {
+                ctx->battery_soc = rxFrame->data[0];
+            }
+            break;
 
-        printf("[VCU] PROFILE: %s | SoC: %d%% | Gear: %c | Speed: %d km/h | Target PWM -> %d\n",
-               (ctx->drive_mode == MODE_ECO) ? "ECO" : (ctx->drive_mode == MODE_NORMAL) ? "NORMAL" : "SPORT",
-               ctx->battery_soc, (ctx->gear_position==1)?'R':'D', ctx->pedal_input, ctx->authorized_pwm);
+        case MSG_GEAR_STATE:
+            if (rxFrame->dlc >= 1 && rxFrame->data[0] <= GEAR_D) {
+                if (ctx->pedal_input > 2) {
+                    printf("[VCU] Reject gear update while pedal is pressed.\n");
+                } else {
+                    ctx->gear_position = rxFrame->data[0];
+                }
+            }
+            break;
+
+        case MSG_DTC_STATUS:
+            if (rxFrame->dlc >= 1) {
+                ctx->active_dtc_fault = rxFrame->data[0];
+            }
+            break;
+
+        default:
+            break;
     }
+
+    if (ctx->active_dtc_fault != 0 || ctx->battery_soc == 0) {
+        ctx->state = VEHICLE_FAULT;
+    } else if (ctx->state == VEHICLE_FAULT) {
+        ctx->state = VEHICLE_READY;
+    }
+}
+
+uint8_t vcu_calculate_motor_pwm(VCU_VehicleContext_t* ctx) {
+    uint16_t pwm = 0;
+
+    if (ctx->state != VEHICLE_READY || ctx->battery_soc == 0) {
+        ctx->authorized_pwm = 0;
+        return 0;
+    }
+
+    if (ctx->gear_position != GEAR_D && ctx->gear_position != GEAR_R) {
+        ctx->authorized_pwm = 0;
+        return 0;
+    }
+
+    pwm = ((uint16_t)ctx->pedal_input * 255U) / 100U;
+
+    if (ctx->drive_mode == MODE_ECO) {
+        pwm = (pwm * 60U) / 100U;
+    } else if (ctx->drive_mode == MODE_SPORT && ctx->pedal_input > 0 && ctx->pedal_input < 30) {
+        pwm = (pwm * 140U) / 100U;
+    }
+
+    if (ctx->gear_position == GEAR_R && pwm > REVERSE_MAX_PWM) {
+        pwm = REVERSE_MAX_PWM;
+    }
+    if (ctx->active_dtc_fault != 0 && pwm > 80U) {
+        pwm = 80U;
+    }
+    if (pwm > 255U) {
+        pwm = 255U;
+    }
+
+    ctx->authorized_pwm = (uint8_t)pwm;
+    return ctx->authorized_pwm;
+}
+
+void vcu_print_status(const VCU_VehicleContext_t* ctx) {
+    printf("[VCU] State:%s Mode:%s SoC:%u%% Gear:%c Speed:%u km/h Pedal:%u%% PWM:%u",
+           state_text(ctx->state),
+           drive_mode_text(ctx->drive_mode),
+           ctx->battery_soc,
+           gear_to_char(ctx->gear_position),
+           ctx->vehicle_speed,
+           ctx->pedal_input,
+           ctx->authorized_pwm);
+
+    if (ctx->active_dtc_fault == 0x11) {
+        printf(" DTC:P0A80 Battery low voltage");
+    } else if (ctx->active_dtc_fault == 0x22) {
+        printf(" DTC:P1A10 Motor overload");
+    } else if (ctx->active_dtc_fault != 0) {
+        printf(" DTC:0x%02X", ctx->active_dtc_fault);
+    }
+    printf("\n");
 }
