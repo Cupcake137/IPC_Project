@@ -8,7 +8,7 @@ Confirmed by the user on 2026-07-12.
 - Arduino Uno is the hardware ECU.
 - The Ubuntu ARM64 VM on the Mac M1 Pro is an independent build/development environment.
 - Current Pi-to-Uno transport is UART at 9600 baud.
-- Two MCP2515 CAN modules are available, but CAN migration is deferred until Phase 3 works reliably over UART.
+- Two MCP2515 CAN modules are available, but CAN migration is deferred until the UART implementation is stable.
 
 ## Arduino Uno I/O
 
@@ -28,8 +28,4 @@ Confirmed by the user on 2026-07-12.
 - A 5V-to-3.3V logic level shifter is used for the UART signals.
 - Uno D2 is the VCU UART RX pin and Uno D3 is the VCU UART TX pin.
 - The Uno firmware uses `SoftwareSerial` on D2/D3 at 9600 baud.
-
-## Reference image clarification
-
-- The supplied reference image shows the electrical purpose of the 3.3V-to-5V level shifter, but its Arduino D0/D1 wiring is not the project's actual wiring.
 - Arduino hardware UART D0/D1 is not used for the Pi-to-Uno VCU channel.

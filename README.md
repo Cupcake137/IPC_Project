@@ -7,7 +7,8 @@ Automotive IPC/VCU prototype using an Arduino Uno as the ECU and a Raspberry Pi 
 - `IPC_ECU_uno/`: PlatformIO firmware for the Arduino Uno.
 - `Pi3B+_VCU/`: C implementation of the VCU powertrain core.
 - `Pi3B+_VCU/phase3_qt_backend/`: Qt 5/C++17 backend, simulation mode, QML UI, and tests.
-- `docs/`: verified hardware baseline and wiring notes.
+- [`docs/PROJECT_HARDWARE_BASELINE.md`](docs/PROJECT_HARDWARE_BASELINE.md): verified hardware and wiring baseline.
+- [`docs/PROJECT_VALIDATION.md`](docs/PROJECT_VALIDATION.md): build, simulation, hardware, and safety validation checklist.
 
 ## Communication
 

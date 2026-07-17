@@ -1,10 +1,38 @@
-# Phase 3 Acceptance
+# IPC Automotive Project Validation
 
-Phase 3 is accepted only after the automated, simulation, and hardware checks below pass.
+This checklist validates the Arduino ECU, VCU core, Qt application, UART integration, and hardware safety behavior. Run the relevant checks after changes to firmware, protocol, backend logic, or wiring.
 
-## 1. Ubuntu VM Build And Tests
+## 1. Communication Baseline
+
+Confirm the implementation matches the project baseline:
+
+- Arduino SoftwareSerial uses D2 RX and D3 TX at 9600 baud.
+- Arduino USB debug uses 115200 baud.
+- The Pi uses the stable CH340 path under `/dev/serial/by-id/`.
+- Both boards use the same frame IDs, payload lengths, counter, and checksum rules.
+
+## 2. Arduino ECU Build
 
 ```bash
+cd IPC_ECU_uno
+pio run
+```
+
+The build must finish without project-source errors and remain within Arduino Uno flash and RAM limits.
+
+## 3. VCU Core Build
+
+```bash
+cd Pi3B+_VCU
+make clean all
+```
+
+The build must generate `bin/vcu_powertrain` without compiler errors.
+
+## 4. Ubuntu VM Qt Build And Tests
+
+```bash
+cd Pi3B+_VCU/phase3_qt_backend
 cmake -S . -B build-vm -G Ninja -DBUILD_TESTING=ON
 cmake --build build-vm
 ctest --test-dir build-vm --output-on-failure
@@ -16,7 +44,7 @@ Expected result:
 100% tests passed, 0 tests failed
 ```
 
-## 2. Simulation Acceptance
+## 5. Qt Simulation
 
 ```bash
 ./build-vm/ipc_phase3_backend --simulate
@@ -33,15 +61,16 @@ Observe at least one complete 20-second cycle:
 - The simulator clears the DTC only in Park at zero pedal and speed.
 - CHARGING keeps authorized PWM at zero.
 
-## 3. Raspberry Pi Build And Tests
+## 6. Raspberry Pi Qt Build And Tests
 
 ```bash
+cd Pi3B+_VCU/phase3_qt_backend
 cmake -S . -B build-pi -G Ninja -DBUILD_TESTING=ON
 cmake --build build-pi
 ctest --test-dir build-pi --output-on-failure
 ```
 
-## 4. Hardware Acceptance
+## 7. Integrated Hardware Test
 
 Run with the stable CH340 path:
 
@@ -59,7 +88,7 @@ Verify:
 - ECO, NORMAL, and SPORT produce different authorized PWM values.
 - An ECU DTC enters FAULT and commands zero PWM.
 
-## 5. Communication Safety Acceptance
+## 8. Communication Safety Test
 
 Perform this test with the motor unloaded or L298 ENA disconnected:
 
@@ -71,7 +100,7 @@ Perform this test with the motor unloaded or L298 ENA disconnected:
 6. Select Park, release the pedal, wait for speed zero, and clear the DTC.
 7. Confirm the system returns to READY.
 
-## 6. Soak Test
+## 9. Soak Test
 
 Run hardware mode for at least 30 minutes. Acceptance requires:
 
@@ -79,3 +108,7 @@ Run hardware mode for at least 30 minutes. Acceptance requires:
 - No unintended motor command in Park, Neutral, Fault, Charging, or communication loss.
 - Checksum and dropped-frame counters remain understandable and do not rise continuously under normal wiring conditions.
 - USB-UART reconnect works without restarting the application.
+
+## 10. Current Project Status
+
+The current UART-based ECU/VCU and Qt backend are validated when all applicable checks above pass. ODO/Trip persistence, DTE blending, the VM-to-Pi cross-compilation sysroot, final UI design, and MCP2515 CAN migration remain separate work items.
