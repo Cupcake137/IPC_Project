@@ -1,0 +1,47 @@
+name: Source validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  software-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+            qtbase5-dev qtdeclarative5-dev libqt5serialport5-dev libmosquitto-dev \
+            qml-module-qtquick2 qml-module-qtquick-window2 \
+            qml-module-qtquick-controls2 qml-module-qtquick-layouts
+      - name: Test C reference
+        run: make -C vcu/c_core clean test
+      - name: Build and test backend
+        run: |
+          cmake -S vcu/cpp_backend -B vcu/cpp_backend/build-ci -G Ninja -DBUILD_TESTING=ON
+          cmake --build vcu/cpp_backend/build-ci --parallel 2
+          ctest --test-dir vcu/cpp_backend/build-ci --output-on-failure
+          ./vcu/cpp_backend/build-ci/ipc_vcu_backend --simulate --no-mqtt --smoke-test
+      - name: Build and test HMI
+        run: |
+          cmake -S hmi/cluster_ui -B hmi/cluster_ui/build-ci -G Ninja -DBUILD_TESTING=ON
+          cmake --build hmi/cluster_ui/build-ci --parallel 2
+          ctest --test-dir hmi/cluster_ui/build-ci --output-on-failure
+          ./hmi/cluster_ui/build-ci/ipc_cluster --simulate --no-mqtt \
+            --screenshot /tmp/ipc-startup.png --screenshot-delay 1500
+      - name: Check shell scripts
+        run: |
+          for script in tools/*.sh vcu/cpp_backend/tools/*.sh; do
+            bash -n "$script"
+          done
