@@ -1,0 +1,90 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>qml/HeaderBar.qml</file>
+        <file>qml/TelltaleBar.qml</file>
+        <file>qml/GearPanel.qml</file>
+        <file>qml/SpeedGauge.qml</file>
+        <file>qml/InfoPanel.qml</file>
+        <file>qml/MenuController.qml</file>
+        <file>qml/InfoLine.qml</file>
+        <file>qml/FooterBar.qml</file>
+        <file>assets/icons/alert-amber.svg</file>
+        <file>assets/icons/alert-outline-off.svg</file>
+        <file>assets/icons/alert-red.svg</file>
+        <file>assets/icons/arrow-left-bold-off.svg</file>
+        <file>assets/icons/arrow-left.svg</file>
+        <file>assets/icons/arrow-right-bold-off.svg</file>
+        <file>assets/icons/arrow-right.svg</file>
+        <file>assets/icons/battery.svg</file>
+        <file>assets/icons/calendar.svg</file>
+        <file>assets/icons/car-brake-abs-off.svg</file>
+        <file>assets/icons/car-brake-abs.svg</file>
+        <file>assets/icons/car-brake-parking-off.svg</file>
+        <file>assets/icons/car-brake-parking.svg</file>
+        <file>assets/icons/car-light-dimmed-off.svg</file>
+        <file>assets/icons/car-light-dimmed.svg</file>
+        <file>assets/icons/car-light-fog-off.svg</file>
+        <file>assets/icons/car-light-fog.svg</file>
+        <file>assets/icons/car-light-high-off.svg</file>
+        <file>assets/icons/car-light-high.svg</file>
+        <file>assets/icons/car-parking-lights-off.svg</file>
+        <file>assets/icons/car-parking-lights.svg</file>
+        <file>assets/icons/car-traction-control-off.svg</file>
+        <file>assets/icons/car-traction-control.svg</file>
+        <file>assets/icons/clock.svg</file>
+        <file>assets/icons/drive-arrow-eco.svg</file>
+        <file>assets/icons/drive-arrow-normal.svg</file>
+        <file>assets/icons/drive-arrow-sport.svg</file>
+        <file>assets/icons/menu-bolt-active.svg</file>
+        <file>assets/icons/menu-bolt.svg</file>
+        <file>assets/icons/menu-brightness_6-active.svg</file>
+        <file>assets/icons/menu-brightness_6.svg</file>
+        <file>assets/icons/menu-directions_car-active.svg</file>
+        <file>assets/icons/menu-directions_car.svg</file>
+        <file>assets/icons/menu-flag-active.svg</file>
+        <file>assets/icons/menu-flag.svg</file>
+        <file>assets/icons/menu-warning-active.svg</file>
+        <file>assets/icons/menu-warning.svg</file>
+        <file>assets/icons/regen.svg</file>
+        <file>assets/icons/seatbelt-off.svg</file>
+        <file>assets/icons/seatbelt.svg</file>
+        <file>assets/icons/weather.svg</file>
+        <file>assets/compact-city-ev.png</file>
+        <file>assets/Dashboard.svg</file>
+        <file>assets/Vector 70.svg</file>
+        <file>assets/Low beam headlights.svg</file>
+        <file>assets/Vector 1.svg</file>
+        <file>assets/Vector 2.svg</file>
+        <file>assets/FirstRightIcon.svg</file>
+        <file>assets/FourthRightIcon.svg</file>
+        <file>assets/Lights.svg</file>
+        <file>assets/Parking lights.svg</file>
+        <file>assets/Rare fog lights.svg</file>
+        <file>assets/SecondRightIcon.svg</file>
+        <file>assets/thirdRightIcon.svg</file>
+        <file>assets/car.png</file>
+        <file>assets/fuel.svg</file>
+        <file>assets/road.svg</file>
+        <file>assets/speedometer.svg</file>
+        <file>Gauge.qml</file>
+        <file>assets/background.png</file>
+        <file>assets/background.svg</file>
+        <file>assets/needle.svg</file>
+        <file>assets/tickmark.svg</file>
+        <file>assets/newcar.svg</file>
+        <file>assets/Car.svg</file>
+        <file>assets/Model 3.svg</file>
+        <file>assets/Model 3.png</file>
+        <file>assets/Light_White.svg</file>
+        <file>assets/Parking_lights_white.svg</file>
+        <file>assets/Parking_lights_green.svg</file>
+        <file>assets/Low_beam_headlights_white.svg</file>
+        <file>assets/Rare_fog_lights_red.svg</file>
+        <file>assets/Front_fog_lights_green.svg</file>
+        <file>assets/FirstRightIcon_grey.svg</file>
+        <file>assets/SecondRightIcon_red.svg</file>
+        <file>assets/thirdRightIcon_red.svg</file>
+        <file>assets/FourthRightIcon_red.svg</file>
+    </qresource>
+</RCC>

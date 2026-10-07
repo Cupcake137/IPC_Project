@@ -15,3 +15,13 @@ compile_commands.json
 *.hex
 *.log
 *_autogen/
+firmware/esp32_keypad_controller/include/secrets.h
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.bundle
+*.tar.gz
+*.pro.user
+distance.ini
