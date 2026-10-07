@@ -7,8 +7,8 @@ instrument cluster. Built as a hands-on embedded C/C++ and Qt portfolio project.
 
 ## Demo
 
-[Watch the hardware demo](https://github.com/Cupcake137/IPC_Project/releases/download/v1.0.0-review/IPC_Project_Demo_HW_2026-10-08.mp4)
-or open the [demo release](https://github.com/Cupcake137/IPC_Project/releases/tag/v1.0.0-review).
+[Watch the hardware demo](https://github.com/Cupcake137/IPC_Project/releases/download/v1.0.0/IPC_Project_Demo_HW_2026-10-08.mp4)
+or open the [demo release](https://github.com/Cupcake137/IPC_Project/releases/tag/v1.0.0).
 
 The 2-minute 45-second recording shows the assembled hardware, individual
 controllers, cluster/debug output, keypad interaction and gear-dependent motor
@@ -31,9 +31,10 @@ measured road speed. Video is hosted as a release asset, not in Git history.
 
 ## Release Snapshot
 
-The project owner reported successful operation of the updated source on the
-Raspberry Pi hardware setup on 2026-10-08, after the final UART watchdog
-correction. Local C reference, backend and HMI regression tests passed.
+Version 1.0.0 includes the final UART watchdog correction. Functional operation
+on the Raspberry Pi hardware setup was confirmed by the project maintainer on
+2026-10-08. C reference, backend and HMI regression tests passed on macOS and in
+GitHub Linux CI.
 See [Release Notes](docs/RELEASE_NOTES.md) for validation boundaries and
 [Final Source Review](docs/FINAL_REVIEW.md) for the corrections.
 

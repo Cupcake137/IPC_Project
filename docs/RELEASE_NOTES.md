@@ -1,21 +1,16 @@
-# Source Release - 2026-10-08
+# Version 1.0.0 - 2026-10-08
 
 ## Handover
 
-The owner reported that the project ran successfully on the Raspberry Pi hardware
-setup on 2026-10-08. This records the owner's overall confirmation, not an
-independently observed result for every item in RELEASE_ACCEPTANCE.md. Detailed
-test durations, logs, flashed firmware revisions and motor-load conditions were
-not supplied for this handover. Do not mark unobserved checklist items as passed.
+The project maintainer confirmed stable functional operation on the Raspberry Pi
+hardware setup on 2026-10-08 after the final UART watchdog correction.
+This is overall functional acceptance, not evidence that every extended
+reliability check in RELEASE_ACCEPTANCE.md was completed. Exact load conditions,
+run durations and firmware hashes were not recorded for every checklist item.
 
-After the final watchdog correction, the owner again confirmed stable hardware
-operation on 2026-10-08. This is overall owner acceptance; the individual extended
-reliability checklist below has not been independently witnessed.
-
-The GitHub handover is submitted on `codex/release-handover` for review before
-merging into `main`. The `v1.0.0-review` prerelease hosts the hardware demo and
-source snapshot for that handover. Earlier local archives predate this final
-correction; use the review branch/tag for the current source.
+The final source is published on `main` and tagged `v1.0.0`. The release contains
+the hardware demo and a source archive with a SHA-256 checksum. Use this tag for
+the final snapshot; earlier local archives predate the watchdog correction.
 
 ## Included
 

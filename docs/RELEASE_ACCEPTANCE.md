@@ -1,10 +1,10 @@
 # Hardware Release Acceptance
 
-## Recorded Owner Acceptance
+## Functional Acceptance
 
-2026-10-08: the owner confirmed that the updated project ran stably on the Pi
+2026-10-08: the maintainer confirmed that the updated project ran stably on the Pi
 after the final watchdog correction. This records overall functional acceptance.
-Individual items below remain a repeatable checklist, not invented per-test
+Individual items below remain a repeatable checklist, not per-test
 evidence. Exact firmware hashes, test duration and load conditions were not supplied.
 
 Use this checklist after manually synchronizing and rebuilding the updated

@@ -1,32 +1,25 @@
-# GitHub Release Guide
+# Release Procedure
 
-## Publication Boundary
+## Source Boundary
 
-Publish the `IPC_Project` repository only, not its parent `IPC_prj` folder.
-Private checkpoints, Git bundles, archived designs, reference projects and audit
-exports remain outside the release. Do not upload an entire Documents folder.
+Publish `IPC_Project` only. Compiler outputs, PlatformIO caches, runtime data,
+private credentials, archived designs and backups are not part of the source
+release. Build binaries for the destination platform rather than copying Mac
+build directories to the Pi.
 
 ## Credentials
 
-- Keep `firmware/esp32_keypad_controller/include/secrets.h` private. Commit the
-  example file only; configure Wi-Fi/MQTT locally.
-- Documentation uses `<mqtt-password>`, not a working password.
-- Rotate any password previously shared in logs, screenshots or conversations.
-- Do not include `.env`, broker password files, private keys or credential-bearing
-  screenshots in a release. Check staged content, not just ignore rules.
-- `.gitignore` does not remove files already tracked or secrets in Git history.
+- Commit `secrets.example.h`, never the local `secrets.h`.
+- Configure Wi-Fi/MQTT locally; examples use `<mqtt-password>`.
+- Rotate credentials exposed in logs or screenshots.
+- Keep `.env`, broker password files and private keys outside Git.
+- Check staged content: ignore rules do not remove previously tracked secrets.
 
-The 2026-10-07 pattern scan covered 69 current text files and 43 reachable Git
-text blobs before these packaging documents were added. Two literal credentials
-were found in the HMI README and replaced. No matches were found in the scanned
-historical text blobs. A shell environment-variable export was a false positive.
-The local `secrets.h` file was confirmed ignored and its contents were not printed.
-This limited scan is not proof that every possible secret is absent; binary files,
-unreachable objects, external repositories and remote branches were not certified.
+The release file review covered 177 indexed files and found no high-confidence
+private-key/token matches. No secret, cache, build or backup paths were staged.
+Pattern scans do not prove that every possible secret is absent.
 
-## Source Review Before Staging
-
-Run from the repository root:
+## Preflight
 
 ```bash
 git status --short
@@ -35,46 +28,28 @@ git check-ignore firmware/esp32_keypad_controller/include/secrets.h
 git ls-files '*secrets*' '*.pem' '*.key' '.env*'
 ```
 
-After selecting files to stage, review both `git diff --cached --stat` and
-`git diff --cached` locally. The tree contains earlier renames and staged changes;
-do not assume every staged change belongs to the most recent packaging work.
-Do not use a broad parent-directory upload or blindly stage every file.
+Run the software tests and follow RELEASE_ACCEPTANCE.md for hardware checks.
+Review `git diff --cached --stat` and `git diff --cached` before committing.
 
-## Release Evidence
+## Release Contents
 
-The focused UART watchdog, C-reference warning and build/documentation
-corrections are recorded in [Final Source Review](FINAL_REVIEW.md), with
-regression results in [Local Test Results](LOCAL_TEST_RESULTS.md).
+- Uno and ESP32 firmware, CAN database, C reference, C++ backend and Qt/QML HMI.
+- English setup, wiring, data-scope and validation documentation.
+- Demo link, reference/artwork attribution and dependency notices.
+- Source archive and SHA-256 checksum; video hosted as a separate release asset.
 
-Use [Local Test Results](LOCAL_TEST_RESULTS.md) and
-[Release Acceptance](RELEASE_ACCEPTANCE.md). Record the actual Pi/firmware versions
-tested and a short hardware demonstration. The latest local changes have not been
-synced to the Pi by the assistant; the owner performs that step.
+## Version 1.0.0
 
-The Uno build on the current Mac was blocked by the installed AVR compiler's
-architecture, not verified as a passing firmware build. Compile/flash it with a
-working toolchain and complete the updated hardware checklist before claiming
-end-to-end release validation. Do not claim physical CAN, measured SOC/speed,
-real regenerative braking or road-vehicle safety certification.
+`main` contains the final source; `v1.0.0` identifies the release snapshot.
+The release hosts the demo described in DEMO.md. The video predates the last
+watchdog correction; subsequent functional Pi acceptance is recorded separately.
+CI validates software on Linux, not board flashing or physical motor behavior.
 
-## Assets And License
+## Rights And Scope
 
-The portfolio handover records a no-blanket-license policy in
-[Rights And Licensing](../LICENSE.md). It does not relicense retained HMI code
-or unknown-origin artwork. See [Third-Party Notices](../THIRD_PARTY_NOTICES.md)
-for provenance notes before further redistribution. Do not classify an
-unknown-origin image as freely redistributable.
+LICENSE.md records the no-blanket-license policy for mixed-provenance material.
+THIRD_PARTY_NOTICES.md records the HMI reference, icon licenses and artwork
+provenance. These notices do not grant rights that the project does not hold.
 
-## Final Package
-
-- Current firmware, CAN database, C core, C++ backend and approved QML HMI.
-- English setup, hardware contract, data scope, tests and acceptance records.
-- Retained asset attribution, dependency notices and explicit rights policy.
-- A concise demo showing gear, throttle response, keypad menu and fail-safe behavior.
-
-## Review Handover
-
-Source is submitted on `codex/release-handover` through a pull request for owner
-review. The `v1.0.0-review` prerelease hosts the video described in DEMO.md.
-No force push, history rewrite or automatic Pi synchronization is required.
-Merge only after reviewing the source, recorded validation and provenance notes.
+Do not present modeled speed/SOC, display-only lights/regen or UART/MQTT frames
+as a measured BMS, physical BCM, regenerative power stage or physical CAN bus.

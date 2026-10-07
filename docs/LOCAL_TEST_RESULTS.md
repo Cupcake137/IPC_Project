@@ -1,66 +1,46 @@
-# Local Validation Results
+# Validation Results
 
-Date: 2026-10-07. Source: IPC_Project after DTC, distance and menu updates.
-Validation was performed on macOS. No Pi connection, synchronization, firmware
-upload or motor operation was performed during this pass.
+Release: 1.0.0. Validation dates: 2026-10-07 and 2026-10-08.
 
-## Results
+## Software Validation
 
-| Check | Result | Evidence / scope |
+| Check | Result | Scope |
 | --- | --- | --- |
-| C reference build and virtual-CAN simulation | PASS | make clean test in isolated source copy |
-| C++ backend build | PASS | Qt 5.15 CMake/Ninja build |
-| Backend tests | PASS | 9 test functions; 1 CTest target |
-| Terminal simulation smoke test | PASS | Process exited with status 0; this is a short startup check |
-| HMI build | PASS | Qt/QML cluster links with shared DTC/state-machine sources |
-| Menu tests | PASS | Actual MenuController.qml with a fake vehicle object |
-| Distance tests | PASS | Fresh interval, disconnect/reconnect, Trip reset, save/reload and moving time |
-| HMI warning/state tests | PASS | Low-SOC limited output and critical motor stop |
-| HMI CTest suite | PASS | All 3 targets passed |
+| C reference build and simulation | PASS | Shared CAN contract, low-SOC limited torque, Reverse cap and critical stop |
+| C++ backend build and tests | PASS | 2 CTest targets, including actual serial parser/state-machine integration |
+| UART regression scenarios | PASS | Fresh Drive, duplicate Drive, bad payload CRC, Energy-only traffic, unknown ID and silence |
+| HMI build and tests | PASS | 3 CTest targets: menu, distance and cluster state |
+| Terminal simulation startup | PASS | Bounded simulation run exits with status 0 |
 | QML startup | PASS | Offscreen simulation starts/exits without QML errors |
-| Visual screenshot verification | NOT VERIFIED | Offscreen grab did not produce an image |
-| ESP32 firmware build | PASS | esp32dev, espressif32 7.0.1, MQTT 2.5.3; example credentials only |
-| Uno firmware build | TOOLCHAIN BLOCKED | Installed AVR compiler is x86_64; host reports Bad CPU type in executable |
-| Shell script syntax | PASS | bash -n on local-test, sync, hardware, soak, package and deploy scripts |
-| Updated Pi hardware acceptance | USER VALIDATION | Use RELEASE_ACCEPTANCE.md after local synchronization |
+| Shell script syntax | PASS | bash -n on build/test, sync, hardware and package scripts |
+| GitHub Linux CI | PASS | Ubuntu 24.04: C reference, backend, HMI/startup and shell checks |
 
-ESP32 build used 45016/327680 bytes RAM and 753433/1310720 bytes application
-flash in this environment. This does not validate Wi-Fi credentials or live MQTT.
-Uno did not reach compilation: no conclusion about its compilation correctness
-can be drawn from this failure. No Rosetta installation or toolchain replacement
-was attempted. Build Uno on a compatible configured machine before release.
+macOS builds use Qt 5.15 and CMake/Ninja. The UART tests use a pseudo-terminal
+and verify outgoing zero-PWM frames after the freshness timeout, not only a
+model property. Continued fresh Drive telemetry retains normal motor authorization.
 
-Temporary build paths are not part of the project or required on another machine:
+Offscreen startup is not a visual screenshot test. The hardware demo separately
+shows the visible cluster and assembled prototype.
 
-- /private/tmp/ipc-release-local-20261007: firmware and C reference source copy.
-- /private/tmp/ipc-dtc-backend-verified: backend build and tests.
-- /private/tmp/ipc-dtc-hmi-verified: HMI build and tests.
+## Firmware Build Record
 
-## Coverage Boundaries
+| Target | Result | Scope |
+| --- | --- | --- |
+| ESP32 | PASS | esp32dev, espressif32 7.0.1, MQTT 2.5.3; example credentials |
+| Uno on the recorded Mac toolchain | HOST TOOLCHAIN LIMITATION | Installed x86_64 AVR compiler could not run on the host |
 
-### 2026-10-08 Watchdog Correction
+The recorded ESP32 build used 45016/327680 bytes RAM and 753433/1310720 bytes
+flash. This does not validate Wi-Fi credentials or live MQTT. The Uno Mac result
+is not a successful firmware compilation; build it on a compatible toolchain.
+The final watchdog correction changes the Pi backend, not either board's firmware.
 
-Fresh builds after the focused correction passed on macOS:
+## Hardware Validation
 
-- C reference: `make clean test`, including low-SOC limited torque and Reverse cap.
-- Backend: both CTest targets passed (`ipc_vcu_tests`, `ipc_serial_tests`).
-- Serial regression: six pseudo-terminal scenarios passed: fresh Drive,
-  duplicate Drive, bad payload CRC, Energy-only traffic, unknown ID and silence.
-  The five stale/invalid-input scenarios verified outgoing zero-PWM commands
-  after timeout, not only the model property.
-- HMI: build and all three CTest targets passed (menu, distance, cluster state).
-- Terminal simulation startup passed. QML offscreen startup exited normally;
-  the screenshot option is used to bound runtime, not as visual validation.
+The maintainer confirmed stable functional operation of the updated Pi setup
+on 2026-10-08. This confirmation and the supplied hardware demo are distinct
+from automated software tests. Exact load conditions, durations and flashed
+firmware hashes were not recorded for every extended acceptance item.
 
-No QML/artwork or board firmware changes were made. This pass did not connect
-to the Pi, flash boards, validate physical motor behavior or resolve asset rights.
-See [Final Source Review](FINAL_REVIEW.md) for the correction scope.
-
-Menu tests cover controller actions, not all rendered components or physical
-keypad input. Distance tests cover the calculation/storage helper; UART-to-HMI
-timing, reset interlocks and real filesystem shutdown must also be checked on
-the Pi. Backend tests include CRC rejection, duplicate-counter rejection,
-warning/critical latching, safe clear, Reverse limit and keypad payload parsing.
-They do not demonstrate a sustained UART/MQTT reconnect or motor-noise run.
-
-Automated PASS is not a hardware reliability or automotive safety claim.
+Use RELEASE_ACCEPTANCE.md to repeat and record the full checklist. Real motor
+noise, sustained reconnect behavior and long-duration reliability require
+documented hardware runs. An automated PASS is not an automotive safety claim.

@@ -1,8 +1,8 @@
 # Hardware Demo
 
-[Watch / download the MP4](https://github.com/Cupcake137/IPC_Project/releases/download/v1.0.0-review/IPC_Project_Demo_HW_2026-10-08.mp4)
+[Watch / download the MP4](https://github.com/Cupcake137/IPC_Project/releases/download/v1.0.0/IPC_Project_Demo_HW_2026-10-08.mp4)
 
-Recorded by the project owner on 2026-10-08. Edited from the three supplied
+Recorded for the project on 2026-10-08. Edited from three recordings
 recordings and four hardware photos. Duration: 165 seconds; 1920 x 1080,
 30 fps. Original recordings remain outside the source repository.
 
@@ -23,7 +23,7 @@ motor control. The recording demonstrates functional behavior, not a long-term
 electrical-noise test, measured vehicle speed or certified fault validation.
 
 The video predates the final UART-watchdog source correction. Subsequent stable
-Pi operation was reported by the owner; the UART regression results are recorded
+Pi operation was confirmed by the maintainer; the UART regression results are recorded
 separately in LOCAL_TEST_RESULTS.md. The footage is not represented as a recording
 of every later source revision or all release-acceptance checks.
 

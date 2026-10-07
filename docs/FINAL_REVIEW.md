@@ -1,4 +1,4 @@
-# Final Source Review
+# Release Validation
 
 Date: 2026-10-08.
 
@@ -37,7 +37,7 @@ Local validation after the correction: C reference simulation PASS, backend
 build and both CTest targets PASS, HMI build and all three CTest targets PASS.
 Firmware was unchanged and was not rebuilt in this correction pass.
 
-- The owner subsequently confirmed stable operation of the updated project on
+- The maintainer subsequently confirmed stable operation of the updated project on
   the Pi. Extended acceptance tests remain a repeatable checklist rather than
   independently witnessed evidence. Neither board needs reflashing for this correction.
 - Verify retained upstream HMI code and artwork redistribution permission and
@@ -46,5 +46,5 @@ Firmware was unchanged and was not rebuilt in this correction pass.
 - LICENSE.md records the no-blanket-license policy for this portfolio handover.
   Review staged files for secrets and use the hardware demo link in README.md.
 
-No Pi synchronization was performed by the assistant. GitHub handover is
-submitted separately on the review branch described in GITHUB_RELEASE.md.
+The final source and demo are published in the `v1.0.0` release. Setup and
+release procedures are described in GITHUB_RELEASE.md.
