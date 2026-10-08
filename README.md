@@ -51,8 +51,7 @@ IPC_Project/
 |-- hmi/
 |   `-- cluster_ui/              Qt/QML instrument cluster
 |-- can_database/                Shared CAN message definitions
-|-- docs/                        Hardware and validation documentation
-`-- tools/                       Project-wide build, test, and sync scripts
+`-- docs/                        Hardware and validation documentation
 ```
 
 The names describe responsibility rather than development phase, so the layout
@@ -71,7 +70,7 @@ machine, authorizes PWM, logs vehicle state, and sends a motor-command heartbeat
 The C core is a readable reference and simulation target. Do not run both VCU
 executables simultaneously because only one process may own the serial port.
 
-## Build Everything
+## Build Prerequisites
 
 Prerequisites: GCC/G++, CMake, Ninja, Qt 5.15 (Core, Gui, Qml, Quick, SerialPort
 and Test), libmosquitto and PlatformIO. Detailed Pi installation and wiring are
@@ -82,12 +81,8 @@ Before building the ESP32, copy
 in the same directory and supply your own Wi-Fi/MQTT configuration. Never commit
 that local file. On macOS, the AVR compiler must support your host architecture.
 
-GitHub Actions builds/tests the C reference, backend and HMI on Ubuntu and checks
-shell syntax. CI does not flash boards or certify physical motor behavior.
-
-```bash
-./tools/test-project-local.sh
-```
+GitHub Actions builds/tests the C reference, backend and HMI on Ubuntu.
+CI does not flash boards or certify physical motor behavior.
 
 ## Build Individual Targets
 
@@ -141,7 +136,11 @@ configuration.
 
 ```bash
 export IPC_MQTT_PASSWORD='<mqtt-password>'
-vcu/cpp_backend/tools/run-hardware.sh
+export IPC_MQTT_HOST=127.0.0.1
+export IPC_MQTT_PORT=1883
+export IPC_MQTT_USER=ipc_qt
+./vcu/cpp_backend/build-local/ipc_vcu_backend \
+  /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0
 ```
 
 Run the visible cluster instead of the terminal backend when a display session

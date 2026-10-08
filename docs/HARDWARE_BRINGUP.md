@@ -17,7 +17,7 @@ Run either the cluster or the terminal backend, never both on the same UART.
 List serial ports, then upload with the matching device names:
 
 ```bash
-cd /Users/sonduong/Documents/IPC_prj/IPC_Project
+cd IPC_Project
 pio device list
 pio run --project-dir firmware/arduino_motor_ecu -t upload --upload-port /dev/cu.usbmodemXXXX
 pio run --project-dir firmware/esp32_keypad_controller -t upload --upload-port /dev/cu.usbserialXXXX
@@ -26,18 +26,11 @@ pio run --project-dir firmware/esp32_keypad_controller -t upload --upload-port /
 The ESP32 build uses the ignored `firmware/esp32_keypad_controller/include/secrets.h`. Never transfer
 or commit this file.
 
-## 3. Synchronize The Pi Source Safely
+## 3. Prepare The Pi Source
 
-Use the Pi IP address rather than the hostname if local DNS cannot resolve it.
-The first command only previews changes and never deletes remote files:
-
-```bash
-tools/sync-to-pi.sh cupcake@192.168.1.75 --dry-run
-tools/sync-to-pi.sh cupcake@192.168.1.75 --apply
-```
-
-The default Pi destination is `/home/cupcake/Documents/My_project/IPC_Project/`.
-Use the current Pi IP if it changes. Synchronization does not rebuild binaries.
+Copy the source repository to the Pi, excluding local secrets and build outputs.
+The examples below use `~/Documents/My_project/IPC_Project` as the checkout
+directory. Adjust this path for your installation and build locally on the Pi.
 
 ## 4. Build And Check The Pi
 
@@ -88,7 +81,8 @@ instead, after exporting the same MQTT variables in that terminal:
 
 ```bash
 cd ~/Documents/My_project/IPC_Project
-./vcu/cpp_backend/tools/run-hardware.sh
+./vcu/cpp_backend/build-pi/ipc_vcu_backend \
+  /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0
 ```
 
 Confirm valid telemetry, Park, zero pedal and zero PWM, and test a keypad page
@@ -105,7 +99,7 @@ changing gear. Stop the application with Ctrl+C before changing wiring.
 5. Use `4`/`6` to reach Display, then `2`/`8` to adjust brightness. There is no hidden Service sequence in the current UI. `0` toggles the hazard display, and `9` cycles drive mode.
 6. While turning slowly with the motor unloaded, stop the Qt process. Uno must stop the motor within 350 ms and report DTC `0xE2`.
 7. Restart the application, return to Park at zero pedal/speed, and press `D` to request a safe latched-DTC clear. View details on Warnings.
-8. Finish with the 30-minute `run-hardware-soak.sh` test from `PROJECT_VALIDATION.md`.
+8. Finish with the 30-minute observation test from `PROJECT_VALIDATION.md`.
 
 Do not run `vcu/c_core/bin/vcu_powertrain` during these tests. The C++ backend is
 the active VCU. Either it or the cluster must be the only CH340 UART owner.

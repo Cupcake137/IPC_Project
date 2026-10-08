@@ -40,8 +40,3 @@ jobs:
           ctest --test-dir hmi/cluster_ui/build-ci --output-on-failure
           ./hmi/cluster_ui/build-ci/ipc_cluster --simulate --no-mqtt \
             --screenshot /tmp/ipc-startup.png --screenshot-delay 1500
-      - name: Check shell scripts
-        run: |
-          for script in tools/*.sh vcu/cpp_backend/tools/*.sh; do
-            bash -n "$script"
-          done

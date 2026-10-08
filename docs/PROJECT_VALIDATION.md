@@ -4,14 +4,10 @@ This checklist validates the Arduino ECU, VCU core, Qt application, UART integra
 
 ## Automated Local Preflight
 
-From the repository root on macOS or Ubuntu:
-
-```bash
-./tools/test-project-local.sh
-```
-
-This command builds both firmware targets, the C reference, C++ backend and HMI,
-then runs their tests and a terminal smoke test. It does not replace hardware tests.
+Use the individual firmware, C reference, C++ backend and HMI build/test commands
+in `README.md`. Run the terminal smoke test with
+`ipc_vcu_backend --simulate --no-mqtt --smoke-test` after building the backend.
+Automated tests do not replace hardware tests.
 
 ## 1. Communication Baseline
 
@@ -96,15 +92,7 @@ cmake --build build-pi
 ctest --test-dir build-pi --output-on-failure
 ```
 
-Alternatively, package and deploy the ARM64 VM build:
-
-```bash
-cd vcu/cpp_backend
-./tools/build-package-arm64.sh
-./tools/deploy-to-pi.sh cupcake@RasberryPi3B
-```
-
-The deploy script must pass both the backend unit tests and the terminal smoke test on the Pi.
+Run the backend unit tests and terminal smoke test on the Pi after building.
 
 ## 8. UI Metrics Scope
 
@@ -119,7 +107,11 @@ Start Mosquitto, power the ESP32, and run with the stable CH340 path:
 
 ```bash
 export IPC_MQTT_PASSWORD='<mqtt-password>'
-vcu/cpp_backend/tools/run-hardware.sh
+export IPC_MQTT_HOST=127.0.0.1
+export IPC_MQTT_PORT=1883
+export IPC_MQTT_USER=ipc_qt
+./vcu/cpp_backend/build-pi/ipc_vcu_backend \
+  /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0
 ```
 
 Verify:
@@ -153,11 +145,9 @@ Before the test, use a separate motor supply where possible, retain the common s
 
 Run hardware mode for at least 30 minutes, including repeated high-PWM acceleration. Acceptance requires:
 
-```bash
-./vcu/cpp_backend/tools/run-hardware-soak.sh \
-  ./vcu/cpp_backend/build-pi/ipc_vcu_backend \
-  /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0 1800
-```
+Use the normal hardware startup command above. Observe its telemetry and the
+Uno USB debug output throughout the test, and stop the process with Ctrl+C
+after at least 30 minutes.
 
 - No backend crash or stalled telemetry processing.
 - No Arduino reset, serial disconnect, or corrupted gear command at high PWM.
@@ -176,5 +166,5 @@ The VCU backend is complete only when:
 - The 30-minute motor-noise soak test passes without an Uno reset.
 
 Physical CAN migration is future work, separate from this UART/MQTT prototype.
-The soak script checks logged faults; a PASS does not independently detect
-every MCU reset or certify electrical reliability. Observe Uno debug logs too.
+Software tests alone do not detect every MCU reset or certify electrical
+reliability. Observe Uno debug logs too.

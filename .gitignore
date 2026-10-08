@@ -25,3 +25,6 @@ firmware/esp32_keypad_controller/include/secrets.h
 *.tar.gz
 *.pro.user
 distance.ini
+# Private workstation/deployment helpers are stored outside this repository.
+/tools/
+/vcu/cpp_backend/tools/

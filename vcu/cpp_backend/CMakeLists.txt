@@ -67,10 +67,6 @@ target_link_libraries(ipc_vcu_backend PRIVATE
     Qt5::SerialPort
 )
 install(TARGETS ipc_vcu_backend RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(PROGRAMS
-    tools/run-hardware.sh
-    tools/run-hardware-soak.sh
-    DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 include(CTest)
 if(BUILD_TESTING)

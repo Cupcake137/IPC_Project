@@ -83,7 +83,7 @@ deliver data safely to Qt.
 3. Decide whether the error must force PWM to zero.
 4. Change the smallest relevant function.
 5. Add or update a test for that behavior.
-6. Run `./tools/test-project-local.sh` before synchronizing the source to the Pi.
+6. Run the build and test commands in `README.md` before testing changes on the Pi.
 
 ## 6. Why Some Files Are Still Technical
 
